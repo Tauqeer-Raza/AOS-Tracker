@@ -81,6 +81,15 @@ Recommended first deploy behavior:
 
 If the seed file is missing, the app skips auto-seeding and still starts normally.
 
+If you need to **reimport the workbook even when the database already has data**, use:
+
+```text
+FORCE_SEED=true
+```
+
+This will clear employees, projects, and work logs, then import the workbook again during `db:prepare`.
+After the reimport succeeds, set `FORCE_SEED=false` again.
+
 ## Environment Variables
 
 ### Root `.env.example`
@@ -104,6 +113,7 @@ Important variables:
 - `DB_SSL`
 - `SYNC_DATABASE`
 - `AUTO_SEED`
+- `FORCE_SEED`
 - `SEED_FILE_PATH`
 - `FRONTEND_DIST`
 

@@ -1,7 +1,11 @@
 import { sequelize } from "../config/db.js";
 import { env } from "../config/env.js";
 import "../models/index.js";
-import { seedIfEmpty } from "../services/seedService.js";
+import {
+  ensureSeedFileExists,
+  forceSeedWorkbook,
+  seedIfEmpty,
+} from "../services/seedService.js";
 
 const run = async () => {
   try {
@@ -14,7 +18,13 @@ const run = async () => {
       console.log("Database synchronization skipped.");
     }
 
-    if (env.autoSeed) {
+    if (env.forceSeed) {
+      ensureSeedFileExists();
+      const result = await forceSeedWorkbook();
+      console.log(
+        `Force-seeded from workbook: ${result.workLogs} logs, ${result.employees} employees, ${result.projects} projects`
+      );
+    } else if (env.autoSeed) {
       const result = await seedIfEmpty();
       if (result) {
         console.log(

@@ -39,6 +39,16 @@ const toDateOnly = (value) => {
 const resolveSeedFilePath = () => path.resolve(process.cwd(), env.seedFilePath);
 const seedFileExists = () => fs.existsSync(resolveSeedFilePath());
 
+export const ensureSeedFileExists = () => {
+  const filePath = resolveSeedFilePath();
+
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Seed workbook not found at ${filePath}`);
+  }
+
+  return filePath;
+};
+
 const getSheetRows = (workbook, sheetName) => {
   const sheet = workbook.Sheets[sheetName];
 
@@ -109,11 +119,7 @@ const readWorkbookData = (filePath) => {
 };
 
 export const importSeedWorkbook = async ({ clearExisting = true } = {}) => {
-  const filePath = resolveSeedFilePath();
-
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Seed workbook not found at ${filePath}`);
-  }
+  const filePath = ensureSeedFileExists();
 
   const workbookData = readWorkbookData(filePath);
 
@@ -156,6 +162,8 @@ export const importSeedWorkbook = async ({ clearExisting = true } = {}) => {
     };
   });
 };
+
+export const forceSeedWorkbook = async () => importSeedWorkbook({ clearExisting: true });
 
 export const seedIfEmpty = async () => {
   const [employeeCount, projectCount, logCount] = await Promise.all([

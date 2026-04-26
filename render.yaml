@@ -23,6 +23,8 @@ services:
         value: "true"
       - key: AUTO_SEED
         value: "false"
+      - key: FORCE_SEED
+        value: "false"
       - key: FRONTEND_DIST
         value: client/dist
       - key: SEED_FILE_PATH

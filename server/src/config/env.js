@@ -16,6 +16,7 @@ export const env = {
   dbStorage: process.env.DB_STORAGE || "./data/aos-tracker.sqlite",
   syncDatabase: process.env.SYNC_DATABASE !== "false",
   autoSeed: process.env.AUTO_SEED === "true",
+  forceSeed: process.env.FORCE_SEED === "true",
   frontendDist: process.env.FRONTEND_DIST || "client/dist",
   seedFilePath:
     process.env.SEED_FILE_PATH ||
