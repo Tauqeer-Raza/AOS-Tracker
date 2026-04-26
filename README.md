@@ -118,6 +118,12 @@ cp client/.env.example client/.env
 Set:
 
 ```text
+VITE_API_URL=/api
+```
+
+For local split frontend/backend development, you can temporarily use:
+
+```text
 VITE_API_URL=http://localhost:5000/api
 ```
 
