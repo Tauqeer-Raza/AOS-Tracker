@@ -6,6 +6,7 @@
     "install:all": "npm --prefix server install && npm --prefix client install",
     "client:dev": "npm --prefix client run dev",
     "server:dev": "npm --prefix server run dev",
+    "db:prepare": "npm --prefix server run db:prepare",
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "build": "npm --prefix client run build",
     "start": "npm --prefix server start",

@@ -1,23 +1,24 @@
 # AOS - Employee Proportion Tracker
 
-Employee work-hour tracking application with dashboard logging, employee contribution reporting, admin management, and Excel-based initial data import.
+Employee work-hour tracking application with dashboard logging, selected-date summaries, contribution reports, admin management, and Excel import/export.
 
-## Features
-
-- Dashboard with daily entry form, selected-date employee summary, and editable log table
-- Admin panel for employees and projects
-- Project-wise and employee-wise contribution reports
-- Excel export with exactly two sheets
-- SQL-backed CRUD after import
-- Excel dataset import command for first-time database seeding
-
-## Tech Stack
+## Production-Ready Stack
 
 - Frontend: React, Vite, Tailwind CSS, Recharts
 - Backend: Node.js, Express.js
-- Database: PostgreSQL or SQLite
+- Database: PostgreSQL for production, SQLite only for local development
 - ORM: Sequelize
+- Hosting target: Render web service + Render Postgres
 - Excel import/export: `xlsx` and ExcelJS
+
+## Features
+
+- Add, edit, and delete daily work logs
+- Selected-date employee hours summary
+- Project-wise and employee-wise contribution reports
+- Admin panel for employee and project master data
+- Excel export with exactly 2 report sheets
+- Excel seed/import command for first-time dataset loading
 
 ## Folder Structure
 
@@ -25,22 +26,66 @@ Employee work-hour tracking application with dashboard logging, employee contrib
 /client
 /server
 /database
+/render.yaml
 README.md
 .gitignore
 .env.example
 ```
 
-## Dataset Placement
+## Render Deployment
 
-Place the source workbook inside:
+This repository is now structured for **Render** using:
+
+- `render.yaml` for Blueprint-based deployment
+- Render Postgres as the production database
+- Express serving the built frontend
+- `DATABASE_URL` support for hosted PostgreSQL
+- `preDeployCommand` to prepare the database schema before the app starts
+
+### Render services created by `render.yaml`
+
+- Web service: `aos-tracker-web`
+- PostgreSQL database: `aos-tracker-db`
+
+### Important production note
+
+Do **not** use SQLite on Render for real deployment. Render local disk is not suitable as your long-term production database. Use PostgreSQL.
+
+## Render Seed File Strategy
+
+The Excel workbook is intentionally **not committed** to Git.
+
+If you want the first Render deployment to import your dataset automatically, you have two options:
+
+1. Upload the workbook to the Render service as a **secret file**
+2. Intentionally add the workbook to the repo yourself
+
+Expected file path inside the service:
 
 ```text
-/server/data/AOS_Sample_Dataset_v3_Max_4_Projects(1).xlsx
+./data/AOS_Sample_Dataset_v3_Max_4_Projects(1).xlsx
 ```
 
-The repository keeps `server/data/.gitkeep` so the folder exists in Git without forcing private Excel files into version control.
+If you use a secret file or another runtime path, set:
 
-## Environment Setup
+```text
+SEED_FILE_PATH=./data/AOS_Sample_Dataset_v3_Max_4_Projects(1).xlsx
+```
+
+Recommended first deploy behavior:
+
+- set `AUTO_SEED=true`
+- deploy once
+- confirm data import
+- then set `AUTO_SEED=false` to avoid unnecessary seed attempts later
+
+If the seed file is missing, the app skips auto-seeding and still starts normally.
+
+## Environment Variables
+
+### Root `.env.example`
+
+The root example mirrors production-style settings.
 
 ### Server
 
@@ -52,10 +97,15 @@ cp server/.env.example server/.env
 
 Important variables:
 
-- `DB_DIALECT=postgres` for hosted databases, or `sqlite` for quick local setup
-- `DB_STORAGE=./data/aos-tracker.sqlite` for local SQLite
-- `AUTO_SEED=true` only if you want the backend to auto-import the workbook into an empty database on startup
-- `SEED_FILE_PATH=./data/AOS_Sample_Dataset_v3_Max_4_Projects(1).xlsx`
+- `NODE_ENV`
+- `PORT`
+- `DATABASE_URL`
+- `DB_DIALECT`
+- `DB_SSL`
+- `SYNC_DATABASE`
+- `AUTO_SEED`
+- `SEED_FILE_PATH`
+- `FRONTEND_DIST`
 
 ### Client
 
@@ -73,27 +123,24 @@ VITE_API_URL=http://localhost:5000/api
 
 ## Database Setup
 
-### SQLite local setup
+### Production
 
-Set this in `server/.env`:
-
-```text
-DB_DIALECT=sqlite
-```
-
-Then the backend will create `server/data/aos-tracker.sqlite`.
-
-### PostgreSQL setup
-
-Update these values in `server/.env`:
+Use PostgreSQL:
 
 ```text
 DB_DIALECT=postgres
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=aos_tracker
-DB_USER=postgres
-DB_PASSWORD=your_password
+DATABASE_URL=postgresql://...
+DB_SSL=false
+SYNC_DATABASE=true
+```
+
+### Local Development
+
+Use SQLite only for local testing:
+
+```text
+DB_DIALECT=sqlite
+DB_STORAGE=./data/aos-tracker.sqlite
 ```
 
 ### SQL Schema
@@ -113,18 +160,6 @@ npm install
 npm run install:all
 ```
 
-Or separately:
-
-```bash
-cd server
-npm install
-```
-
-```bash
-cd client
-npm install
-```
-
 ## Import Excel Data
 
 After placing the workbook in `server/data`, run:
@@ -140,37 +175,44 @@ or from the project root:
 npm run seed
 ```
 
-What the seed command does:
+What it does:
 
-- reads the `Work Logs`, `Employees`, and `Projects` sheets
+- reads `Work Logs`
+- reads `Employees`
+- reads `Projects`
 - clears old imported/demo rows
 - imports employees
 - imports projects
 - imports work logs
-- stores everything in the SQL database
+- then the app uses SQL for all operations afterward
 
-After import, the app uses only the SQL database for dashboard, admin, reports, edits, deletes, and exports.
+## Local Development
 
-## Start Backend
+### Backend
 
 ```bash
 cd server
 npm run dev
 ```
 
-## Start Frontend
+### Frontend
 
 ```bash
 cd client
 npm run dev
 ```
 
-## Production-Style Local Run
+### Combined root dev
 
-Build the frontend and serve it from Express:
+```bash
+npm run dev
+```
+
+## Production-Style Local Run
 
 ```bash
 npm run build
+npm run db:prepare
 npm start
 ```
 
@@ -180,6 +222,26 @@ Open:
 http://localhost:5000
 ```
 
+## Render Commands
+
+### Build command
+
+```bash
+npm install && npm run install:all && npm run build
+```
+
+### Pre-deploy command
+
+```bash
+npm run db:prepare
+```
+
+### Start command
+
+```bash
+npm start
+```
+
 ## Useful Commands
 
 From project root:
@@ -187,6 +249,7 @@ From project root:
 ```bash
 npm run dev
 npm run build
+npm run db:prepare
 npm start
 npm run seed
 ```
@@ -194,6 +257,7 @@ npm run seed
 From server:
 
 ```bash
+npm run db:prepare
 npm run seed
 npm run import-excel
 npm run dev
@@ -222,22 +286,19 @@ Employee Contribution % = Employee Project Hours / Total Project Hours * 100
 
 ## Excel Export
 
-Exports are generated from SQL database data and contain exactly two sheets:
+Exports are generated from SQL database data and contain exactly 2 sheets:
 
 1. `Project wise breakdown`
 2. `Employee contribution by project`
 
-Each export includes:
+Note:
 
-- selected date range metadata
-- bold headers
-- frozen header row
-- filters
-- readable column widths
+- Excel itself limits worksheet names to 31 characters, so the second sheet name may be visually trimmed by Excel clients even though the export logic follows the requested naming intent.
 
 ## GitHub Notes
 
 - `.env` files are ignored
 - `server/data/.gitkeep` is tracked
-- `.xlsx` files are ignored unless intentionally force-added
-- the project is ready to push once your local `.env` stays uncommitted
+- `.xlsx` files are ignored unless you intentionally force-add one
+- SQLite files and logs are ignored
+- the repo is ready for GitHub and Render deployment

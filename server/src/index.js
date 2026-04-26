@@ -7,7 +7,9 @@ import { seedIfEmpty } from "./services/seedService.js";
 const startServer = async () => {
   try {
     await sequelize.authenticate();
-    await sequelize.sync();
+    if (env.syncDatabase) {
+      await sequelize.sync();
+    }
     if (env.autoSeed) {
       const seeded = await seedIfEmpty();
       if (seeded) {

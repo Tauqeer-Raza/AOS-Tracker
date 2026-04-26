@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "db:prepare": "node src/scripts/prepareDatabase.js",
     "seed": "node src/scripts/seedFromExcel.js",
     "import-excel": "node src/scripts/seedFromExcel.js"
   },
