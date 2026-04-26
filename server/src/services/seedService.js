@@ -119,9 +119,11 @@ export const importSeedWorkbook = async ({ clearExisting = true } = {}) => {
 
   return sequelize.transaction(async (transaction) => {
     if (clearExisting) {
-      await WorkLog.destroy({ where: {}, truncate: true, force: true, transaction });
-      await Employee.destroy({ where: {}, truncate: true, force: true, transaction });
-      await Project.destroy({ where: {}, truncate: true, force: true, transaction });
+      // Use ordered deletes instead of TRUNCATE so Postgres does not reject
+      // referenced tables during Render auto-seed.
+      await WorkLog.destroy({ where: {}, force: true, transaction });
+      await Employee.destroy({ where: {}, force: true, transaction });
+      await Project.destroy({ where: {}, force: true, transaction });
     }
 
     const employees = await Employee.bulkCreate(
