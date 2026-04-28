@@ -17,20 +17,71 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 const createInitialForm = () => ({
-  dateInput: today,
-  dates: [today],
+  startDate: today,
+  endDate: today,
   projectId: "",
   employeeId: "",
   hours: "",
 });
 
 const fieldClassName =
-  "mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary";
-
-const normalizeDates = (dates) =>
-  [...new Set(dates.filter(Boolean))].sort((left, right) => left.localeCompare(right));
+  "mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[#111111] outline-none transition focus:border-primary";
 
 const formatDateLabel = (value) => dateFormatter.format(new Date(`${value}T00:00:00`));
+
+const enumerateDates = (startDate, endDate) => {
+  const dates = [];
+  const cursor = new Date(`${startDate}T00:00:00`);
+  const limit = new Date(`${endDate}T00:00:00`);
+
+  while (cursor <= limit) {
+    dates.push(cursor.toISOString().split("T")[0]);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+};
+
+const getRangeDetails = (startDate, endDate) => {
+  if (!startDate || !endDate) {
+    return {
+      dates: [],
+      dayCount: 0,
+      label: "Select a start and end date.",
+      isValid: false,
+    };
+  }
+
+  if (endDate < startDate) {
+    return {
+      dates: [],
+      dayCount: 0,
+      label: "End date must be the same as or after the start date.",
+      isValid: false,
+    };
+  }
+
+  const dates = enumerateDates(startDate, endDate);
+  const dayCount = dates.length;
+
+  if (dayCount === 1) {
+    return {
+      dates,
+      dayCount,
+      label: `1 entry will be created for ${formatDateLabel(startDate)}.`,
+      isValid: true,
+    };
+  }
+
+  return {
+    dates,
+    dayCount,
+    label: `${dayCount} entries will be created from ${formatDateLabel(
+      startDate
+    )} to ${formatDateLabel(endDate)}.`,
+    isValid: true,
+  };
+};
 
 const buildFailedDatesMessage = (failedDates = [], invalidDates = []) => {
   const parts = [];
@@ -62,84 +113,54 @@ const extractRequestError = (requestError, fallbackMessage) => {
   return [payload?.message, failedDatesMessage, fallbackMessage].filter(Boolean).join(" ");
 };
 
-function SelectedDatesField({ formValues, onChange, onAddDate, onRemoveDate, onClearDates }) {
+function DateRangeField({ formValues, onChange }) {
+  const rangeDetails = getRangeDetails(formValues.startDate, formValues.endDate);
+
   return (
     <label className="text-sm font-medium text-[#111111]">
       Date / Dates
-      <div className="mt-2 space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <input
-            type="date"
-            className="h-12 flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary"
-            value={formValues.dateInput}
-            onChange={(event) => onChange("dateInput", event.target.value)}
-          />
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onAddDate}
-              className="h-12 rounded-2xl border border-primary px-4 text-sm font-semibold text-primary"
-            >
-              Add Date
-            </button>
-            <button
-              type="button"
-              onClick={onClearDates}
-              className="h-12 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-[#555555]"
-            >
-              Clear
-            </button>
-          </div>
+      <div className="mt-2 rounded-[22px] border border-slate-200 bg-[#F8FAFF] p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#555555]">
+            Start Date
+            <input
+              type="date"
+              className={fieldClassName}
+              value={formValues.startDate}
+              onChange={(event) => onChange("startDate", event.target.value)}
+            />
+          </label>
+
+          <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#555555]">
+            End Date
+            <input
+              type="date"
+              className={fieldClassName}
+              value={formValues.endDate}
+              onChange={(event) => onChange("endDate", event.target.value)}
+            />
+          </label>
         </div>
 
-        <div className="min-h-[88px] rounded-2xl border border-slate-200 bg-white p-3">
-          {formValues.dates.length ? (
-            <div className="flex flex-wrap gap-2">
-              {formValues.dates.map((date) => (
-                <button
-                  key={date}
-                  type="button"
-                  onClick={() => onRemoveDate(date)}
-                  className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition hover:border-primary"
-                >
-                  {formatDateLabel(date)} x
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-[#555555]">
-              Select one or more dates. Each selected date will be saved as its own work log row.
-            </p>
-          )}
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+          <p className="text-sm font-semibold text-[#111111]">
+            {rangeDetails.isValid ? rangeDetails.label : "Range preview"}
+          </p>
+          <p className="mt-1 text-sm text-[#555555]">
+            {rangeDetails.isValid
+              ? "Use the same start and end date for a single-day entry."
+              : rangeDetails.label}
+          </p>
         </div>
-
-        <p className="text-xs text-[#555555]">
-          Pick a date, click <span className="font-semibold text-[#111111]">Add Date</span>, and
-          submit once to create separate rows for every selected date.
-        </p>
       </div>
     </label>
   );
 }
 
-function CreateLogFormFields({
-  formValues,
-  onChange,
-  onAddDate,
-  onRemoveDate,
-  onClearDates,
-  employees,
-  projects,
-}) {
+function CreateLogFormFields({ formValues, onChange, employees, projects }) {
   return (
     <div className="grid gap-5 md:grid-cols-2">
-      <SelectedDatesField
-        formValues={formValues}
-        onChange={onChange}
-        onAddDate={onAddDate}
-        onRemoveDate={onRemoveDate}
-        onClearDates={onClearDates}
-      />
+      <DateRangeField formValues={formValues} onChange={onChange} />
 
       <label className="text-sm font-medium text-[#111111]">
         Project Name
@@ -318,6 +339,11 @@ export default function DashboardPage() {
     [summary]
   );
 
+  const selectedRange = useMemo(
+    () => getRangeDetails(entryForm.startDate, entryForm.endDate),
+    [entryForm.startDate, entryForm.endDate]
+  );
+
   const handleFormChange = (key, value) => {
     setEntryForm((current) => ({
       ...current,
@@ -336,44 +362,15 @@ export default function DashboardPage() {
     await fetchDailyLogs(selectedDate);
   }, [fetchDailyLogs, selectedDate]);
 
-  const handleAddDate = () => {
-    if (!entryForm.dateInput) {
-      setError("Select a valid date before adding it to the list.");
-      return;
-    }
-
-    setEntryForm((current) => ({
-      ...current,
-      dates: normalizeDates([...current.dates, current.dateInput]),
-    }));
-    setError("");
-  };
-
-  const handleRemoveDate = (dateToRemove) => {
-    setEntryForm((current) => ({
-      ...current,
-      dates: current.dates.filter((date) => date !== dateToRemove),
-    }));
-  };
-
-  const handleClearDates = () => {
-    setEntryForm((current) => ({
-      ...current,
-      dates: [],
-    }));
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
     setError("");
     setMessage("");
 
-    const selectedDates = normalizeDates(entryForm.dates);
-
-    if (!selectedDates.length) {
+    if (!selectedRange.isValid) {
       setSubmitting(false);
-      setError("Select at least one date before submitting the work log.");
+      setError("Choose a valid date range before submitting the work log.");
       return;
     }
 
@@ -383,10 +380,10 @@ export default function DashboardPage() {
       hours: Number(entryForm.hours),
     };
 
-    if (selectedDates.length === 1) {
-      payload.date = selectedDates[0];
+    if (selectedRange.dayCount === 1) {
+      payload.date = selectedRange.dates[0];
     } else {
-      payload.dates = selectedDates;
+      payload.dates = selectedRange.dates;
     }
 
     try {
@@ -399,18 +396,18 @@ export default function DashboardPage() {
 
       setMessage(
         response.data?.message ||
-          `Entry saved successfully for ${selectedDates
+          `Entry saved successfully for ${selectedRange.dates
             .map((date) => formatDateLabel(date))
             .join(", ")}.`
       );
       setError(failedDatesMessage);
       setEntryForm(createInitialForm());
 
-      if (selectedDates.includes(selectedDate)) {
+      if (selectedRange.dates.includes(selectedDate)) {
         await refreshSelectedDate();
       }
 
-      if (selectedDates.length > 1 && !response.data?.message) {
+      if (selectedRange.dayCount > 1 && !response.data?.message) {
         setMessage(`Created ${createdCount} individual work log entries.`);
       }
     } catch (requestError) {
@@ -484,7 +481,7 @@ export default function DashboardPage() {
       <SectionHeader
         eyebrow="Dashboard"
         title="AOS - Employee Proportion Tracker"
-        subtitle="Add work logs across one or many dates, review selected-date totals, and keep contribution reporting accurate."
+        subtitle="Add work logs across one day or a full date range, review selected-date totals, and keep contribution reporting accurate."
       />
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -500,12 +497,12 @@ export default function DashboardPage() {
         <StatCard label="Entries Logged" value={entries.length} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-        <Card className="min-h-[460px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
+        <Card className="min-h-[430px] overflow-hidden">
           <SectionHeader
             eyebrow="Daily Logger"
             title="Add Work Entry"
-            subtitle="Choose one or multiple dates and submit once. Each selected date is stored as its own editable row."
+            subtitle="Set a start and end date once. The app will create one row per day in that range."
           />
 
           {lookupsLoading ? (
@@ -515,9 +512,6 @@ export default function DashboardPage() {
               <CreateLogFormFields
                 formValues={entryForm}
                 onChange={handleFormChange}
-                onAddDate={handleAddDate}
-                onRemoveDate={handleRemoveDate}
-                onClearDates={handleClearDates}
                 employees={employees}
                 projects={projects}
               />
@@ -545,19 +539,19 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card className="min-h-[460px]">
+        <Card className="min-h-[430px] overflow-hidden">
           <SectionHeader
             eyebrow="Daily Summary"
             title="Hours by Employee"
             subtitle="Employee-wise total hours for the selected date."
             action={
-              <label className="text-sm font-medium text-[#111111]">
+              <label className="w-full text-sm font-medium text-[#111111] sm:w-auto">
                 <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-[#555555]">
                   Summary Date
                 </span>
                 <input
                   type="date"
-                  className="h-12 rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary"
+                  className="h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary sm:w-auto"
                   value={selectedDate}
                   onChange={(event) => setSelectedDate(event.target.value)}
                 />
@@ -575,11 +569,11 @@ export default function DashboardPage() {
                   className="rounded-2xl border border-slate-200 px-4 py-4"
                 >
                   <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-medium text-[#111111]">{item.employeeName}</p>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-[#111111]">{item.employeeName}</p>
                       <p className="text-sm text-[#555555]">Total hours for {selectedDate}</p>
                     </div>
-                    <p className="text-xl font-semibold text-primary">{item.totalHours}</p>
+                    <p className="shrink-0 text-xl font-semibold text-primary">{item.totalHours}</p>
                   </div>
                 </div>
               ))}
@@ -593,7 +587,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="overflow-hidden">
         <SectionHeader
           eyebrow="Entries"
           title="Selected Date Logs"
