@@ -10,25 +10,192 @@ import SectionSkeleton from "../components/SectionSkeleton.jsx";
 import StatCard from "../components/StatCard.jsx";
 
 const today = new Date().toISOString().split("T")[0];
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
 const createInitialForm = () => ({
-  date: today,
+  dateInput: today,
+  dates: [today],
   projectId: "",
   employeeId: "",
   hours: "",
 });
 
 const fieldClassName =
-  "mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary";
+  "mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary";
 
-function LogFormFields({
+const normalizeDates = (dates) =>
+  [...new Set(dates.filter(Boolean))].sort((left, right) => left.localeCompare(right));
+
+const formatDateLabel = (value) => dateFormatter.format(new Date(`${value}T00:00:00`));
+
+const buildFailedDatesMessage = (failedDates = [], invalidDates = []) => {
+  const parts = [];
+
+  if (invalidDates.length) {
+    parts.push(`Invalid dates: ${invalidDates.join(", ")}`);
+  }
+
+  if (failedDates.length) {
+    parts.push(
+      `Skipped dates: ${failedDates
+        .map(
+          (item) =>
+            `${formatDateLabel(item.date)} (existing ${Number(item.existingHours).toFixed(
+              2
+            )}h, requested ${Number(item.requestedHours).toFixed(2)}h)`
+        )
+        .join("; ")}`
+    );
+  }
+
+  return parts.join(" ");
+};
+
+const extractRequestError = (requestError, fallbackMessage) => {
+  const payload = requestError.response?.data;
+  const failedDatesMessage = buildFailedDatesMessage(payload?.failedDates, payload?.invalidDates);
+
+  return [payload?.message, failedDatesMessage, fallbackMessage].filter(Boolean).join(" ");
+};
+
+function SelectedDatesField({ formValues, onChange, onAddDate, onRemoveDate, onClearDates }) {
+  return (
+    <label className="text-sm font-medium text-[#111111]">
+      Date / Dates
+      <div className="mt-2 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            type="date"
+            className="h-12 flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary"
+            value={formValues.dateInput}
+            onChange={(event) => onChange("dateInput", event.target.value)}
+          />
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onAddDate}
+              className="h-12 rounded-2xl border border-primary px-4 text-sm font-semibold text-primary"
+            >
+              Add Date
+            </button>
+            <button
+              type="button"
+              onClick={onClearDates}
+              className="h-12 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-[#555555]"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <div className="min-h-[88px] rounded-2xl border border-slate-200 bg-white p-3">
+          {formValues.dates.length ? (
+            <div className="flex flex-wrap gap-2">
+              {formValues.dates.map((date) => (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => onRemoveDate(date)}
+                  className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition hover:border-primary"
+                >
+                  {formatDateLabel(date)} x
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-[#555555]">
+              Select one or more dates. Each selected date will be saved as its own work log row.
+            </p>
+          )}
+        </div>
+
+        <p className="text-xs text-[#555555]">
+          Pick a date, click <span className="font-semibold text-[#111111]">Add Date</span>, and
+          submit once to create separate rows for every selected date.
+        </p>
+      </div>
+    </label>
+  );
+}
+
+function CreateLogFormFields({
   formValues,
   onChange,
+  onAddDate,
+  onRemoveDate,
+  onClearDates,
   employees,
   projects,
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-5 md:grid-cols-2">
+      <SelectedDatesField
+        formValues={formValues}
+        onChange={onChange}
+        onAddDate={onAddDate}
+        onRemoveDate={onRemoveDate}
+        onClearDates={onClearDates}
+      />
+
+      <label className="text-sm font-medium text-[#111111]">
+        Project Name
+        <select
+          required
+          className={fieldClassName}
+          value={formValues.projectId}
+          onChange={(event) => onChange("projectId", event.target.value)}
+        >
+          <option value="">Select project</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="text-sm font-medium text-[#111111]">
+        Employee Name
+        <select
+          required
+          className={fieldClassName}
+          value={formValues.employeeId}
+          onChange={(event) => onChange("employeeId", event.target.value)}
+        >
+          <option value="">Select employee</option>
+          {employees.map((employee) => (
+            <option key={employee.id} value={employee.id}>
+              {employee.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="text-sm font-medium text-[#111111]">
+        Hours
+        <input
+          type="number"
+          min="0.25"
+          max="8"
+          step="0.25"
+          required
+          className={fieldClassName}
+          value={formValues.hours}
+          onChange={(event) => onChange("hours", event.target.value)}
+          placeholder="e.g. 8"
+        />
+      </label>
+    </div>
+  );
+}
+
+function EditLogFormFields({ formValues, onChange, employees, projects }) {
+  return (
+    <div className="grid gap-5 md:grid-cols-2">
       <label className="text-sm font-medium text-[#111111]">
         Date
         <input
@@ -36,20 +203,6 @@ function LogFormFields({
           className={fieldClassName}
           value={formValues.date}
           onChange={(event) => onChange("date", event.target.value)}
-        />
-      </label>
-
-      <label className="text-sm font-medium text-[#111111]">
-        Hours Worked
-        <input
-          type="number"
-          min="0.25"
-          step="0.25"
-          required
-          className={fieldClassName}
-          value={formValues.hours}
-          onChange={(event) => onChange("hours", event.target.value)}
-          placeholder="e.g. 8"
         />
       </label>
 
@@ -85,6 +238,21 @@ function LogFormFields({
             </option>
           ))}
         </select>
+      </label>
+
+      <label className="text-sm font-medium text-[#111111]">
+        Hours
+        <input
+          type="number"
+          min="0.25"
+          max="8"
+          step="0.25"
+          required
+          className={fieldClassName}
+          value={formValues.hours}
+          onChange={(event) => onChange("hours", event.target.value)}
+          placeholder="e.g. 8"
+        />
       </label>
     </div>
   );
@@ -168,28 +336,85 @@ export default function DashboardPage() {
     await fetchDailyLogs(selectedDate);
   }, [fetchDailyLogs, selectedDate]);
 
+  const handleAddDate = () => {
+    if (!entryForm.dateInput) {
+      setError("Select a valid date before adding it to the list.");
+      return;
+    }
+
+    setEntryForm((current) => ({
+      ...current,
+      dates: normalizeDates([...current.dates, current.dateInput]),
+    }));
+    setError("");
+  };
+
+  const handleRemoveDate = (dateToRemove) => {
+    setEntryForm((current) => ({
+      ...current,
+      dates: current.dates.filter((date) => date !== dateToRemove),
+    }));
+  };
+
+  const handleClearDates = () => {
+    setEntryForm((current) => ({
+      ...current,
+      dates: [],
+    }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
     setError("");
     setMessage("");
 
-    try {
-      await api.post("/logs", {
-        date: entryForm.date,
-        employeeId: Number(entryForm.employeeId),
-        projectId: Number(entryForm.projectId),
-        hours: Number(entryForm.hours),
-      });
+    const selectedDates = normalizeDates(entryForm.dates);
 
-      setMessage(`Entry saved successfully for ${entryForm.date}.`);
+    if (!selectedDates.length) {
+      setSubmitting(false);
+      setError("Select at least one date before submitting the work log.");
+      return;
+    }
+
+    const payload = {
+      employeeId: Number(entryForm.employeeId),
+      projectId: Number(entryForm.projectId),
+      hours: Number(entryForm.hours),
+    };
+
+    if (selectedDates.length === 1) {
+      payload.date = selectedDates[0];
+    } else {
+      payload.dates = selectedDates;
+    }
+
+    try {
+      const response = await api.post("/logs", payload);
+      const createdCount = response.data?.createdCount || 1;
+      const failedDatesMessage = buildFailedDatesMessage(
+        response.data?.failedDates,
+        response.data?.invalidDates
+      );
+
+      setMessage(
+        response.data?.message ||
+          `Entry saved successfully for ${selectedDates
+            .map((date) => formatDateLabel(date))
+            .join(", ")}.`
+      );
+      setError(failedDatesMessage);
       setEntryForm(createInitialForm());
 
-      if (entryForm.date === selectedDate) {
+      if (selectedDates.includes(selectedDate)) {
         await refreshSelectedDate();
       }
+
+      if (selectedDates.length > 1 && !response.data?.message) {
+        setMessage(`Created ${createdCount} individual work log entries.`);
+      }
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Failed to submit entry.");
+      setError(extractRequestError(requestError, "Failed to submit entry."));
     } finally {
       setSubmitting(false);
     }
@@ -224,7 +449,7 @@ export default function DashboardPage() {
       setEditingLog(null);
       await refreshSelectedDate();
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "Failed to update entry.");
+      setError(extractRequestError(requestError, "Failed to update entry."));
     } finally {
       setSavingEdit(false);
     }
@@ -259,7 +484,7 @@ export default function DashboardPage() {
       <SectionHeader
         eyebrow="Dashboard"
         title="AOS - Employee Proportion Tracker"
-        subtitle="Add daily work logs, review selected-date totals, and keep contribution reporting accurate."
+        subtitle="Add work logs across one or many dates, review selected-date totals, and keep contribution reporting accurate."
       />
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -275,21 +500,24 @@ export default function DashboardPage() {
         <StatCard label="Entries Logged" value={entries.length} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card className="min-h-[420px]">
+      <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+        <Card className="min-h-[460px]">
           <SectionHeader
             eyebrow="Daily Logger"
             title="Add Work Entry"
-            subtitle="Capture project effort without leaving the dashboard."
+            subtitle="Choose one or multiple dates and submit once. Each selected date is stored as its own editable row."
           />
 
           {lookupsLoading ? (
             <Loader label="Loading form options..." />
           ) : (
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              <LogFormFields
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <CreateLogFormFields
                 formValues={entryForm}
                 onChange={handleFormChange}
+                onAddDate={handleAddDate}
+                onRemoveDate={handleRemoveDate}
+                onClearDates={handleClearDates}
                 employees={employees}
                 projects={projects}
               />
@@ -304,7 +532,10 @@ export default function DashboardPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setEntryForm(createInitialForm())}
+                  onClick={() => {
+                    setEntryForm(createInitialForm());
+                    setError("");
+                  }}
                   className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-[#555555]"
                 >
                   Reset
@@ -314,7 +545,7 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card className="min-h-[420px]">
+        <Card className="min-h-[460px]">
           <SectionHeader
             eyebrow="Daily Summary"
             title="Hours by Employee"
@@ -326,7 +557,7 @@ export default function DashboardPage() {
                 </span>
                 <input
                   type="date"
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary"
+                  className="h-12 rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary"
                   value={selectedDate}
                   onChange={(event) => setSelectedDate(event.target.value)}
                 />
@@ -366,7 +597,7 @@ export default function DashboardPage() {
         <SectionHeader
           eyebrow="Entries"
           title="Selected Date Logs"
-          subtitle={`Detailed work logs for ${selectedDate}.`}
+          subtitle={`Detailed work logs for ${selectedDate}. Every row remains editable and deletable on its own.`}
         />
 
         {logsLoading ? (
@@ -411,11 +642,11 @@ export default function DashboardPage() {
       {editingLog ? (
         <Modal
           title="Edit Work Entry"
-          subtitle="Update the log details and save the revised values."
+          subtitle="Update only this selected work log row."
           onClose={() => setEditingLog(null)}
         >
           <form className="space-y-5" onSubmit={handleEditSave}>
-            <LogFormFields
+            <EditLogFormFields
               formValues={editingLog}
               onChange={handleEditFieldChange}
               employees={employees}

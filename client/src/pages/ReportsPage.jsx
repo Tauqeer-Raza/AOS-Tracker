@@ -3,6 +3,7 @@ import {
   Bar,
   BarChart,
   Cell,
+  LabelList,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -22,7 +23,14 @@ const palette = ["#002CCE", "#2D6BFF", "#5E85FF", "#8AA8FF", "#B9CBFF"];
 const today = new Date().toISOString().split("T")[0];
 
 const inputClassName =
-  "mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary";
+  "mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-[#111111] outline-none transition focus:border-primary";
+
+const createInitialContributionState = () => ({
+  employee: "",
+  totalEmployeeHours: 0,
+  projectCount: 0,
+  projects: [],
+});
 
 const sortRows = (rows, sortBy) => {
   const sorted = [...rows];
@@ -53,6 +61,12 @@ export default function ReportsPage() {
     projectId: "",
     employeeId: "",
   });
+  const [activeReportFilters, setActiveReportFilters] = useState({
+    fromDate: today,
+    toDate: today,
+    projectId: "",
+    employeeId: "",
+  });
   const [reportData, setReportData] = useState({
     projects: [],
     employeeContributions: [],
@@ -63,10 +77,15 @@ export default function ReportsPage() {
       totalHours: 0,
     },
   });
+  const [employeeContribution, setEmployeeContribution] = useState(
+    createInitialContributionState
+  );
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [sortBy, setSortBy] = useState("totalHours");
   const [lookupsLoading, setLookupsLoading] = useState(true);
   const [reportLoading, setReportLoading] = useState(true);
+  const [contributionLoading, setContributionLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
 
@@ -96,11 +115,39 @@ export default function ReportsPage() {
         employeeContributions: response.data.employeeContributions,
         summary: response.data.summary,
       });
+      setActiveReportFilters({
+        fromDate: activeFilters.fromDate,
+        toDate: activeFilters.toDate,
+        projectId: activeFilters.projectId,
+        employeeId: activeFilters.employeeId,
+      });
       setSelectedProjectId((current) => current || String(response.data.projects[0]?.projectId || ""));
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Failed to generate report.");
     } finally {
       setReportLoading(false);
+    }
+  }, []);
+
+  const fetchEmployeeContribution = useCallback(async (employeeId, reportFilters) => {
+    if (!employeeId) {
+      setEmployeeContribution(createInitialContributionState());
+      return;
+    }
+
+    setContributionLoading(true);
+
+    try {
+      const response = await api.get(`/reports/employee-contribution/${employeeId}`, {
+        params: reportFilters,
+      });
+      setEmployeeContribution(response.data);
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message || "Failed to load employee contribution chart."
+      );
+    } finally {
+      setContributionLoading(false);
     }
   }, []);
 
@@ -192,6 +239,21 @@ export default function ReportsPage() {
     return [...grouped].sort((left, right) => right.totalProjectHours - left.totalProjectHours);
   }, [reportData.projects, sortBy]);
 
+  const reportEmployees = useMemo(() => {
+    const employeeMap = new Map();
+
+    reportData.employeeContributions.forEach((row) => {
+      if (!employeeMap.has(row.employeeId)) {
+        employeeMap.set(row.employeeId, {
+          id: String(row.employeeId),
+          name: row.employeeName,
+        });
+      }
+    });
+
+    return Array.from(employeeMap.values()).sort((left, right) => left.name.localeCompare(right.name));
+  }, [reportData.employeeContributions]);
+
   const selectedProject = useMemo(() => {
     return (
       sortedProjects.find((project) => String(project.projectId) === String(selectedProjectId)) ||
@@ -200,10 +262,35 @@ export default function ReportsPage() {
   }, [selectedProjectId, sortedProjects]);
 
   useEffect(() => {
-    if (sortedProjects.length && !sortedProjects.some((item) => String(item.projectId) === String(selectedProjectId))) {
+    if (
+      sortedProjects.length &&
+      !sortedProjects.some((item) => String(item.projectId) === String(selectedProjectId))
+    ) {
       setSelectedProjectId(String(sortedProjects[0].projectId));
     }
   }, [selectedProjectId, sortedProjects]);
+
+  useEffect(() => {
+    if (!reportEmployees.length) {
+      setSelectedEmployeeId("");
+      setEmployeeContribution(createInitialContributionState());
+      return;
+    }
+
+    if (!reportEmployees.some((employee) => employee.id === selectedEmployeeId)) {
+      setSelectedEmployeeId(reportEmployees[0].id);
+    }
+  }, [reportEmployees, selectedEmployeeId]);
+
+  useEffect(() => {
+    if (!selectedEmployeeId) {
+      return;
+    }
+
+    fetchEmployeeContribution(selectedEmployeeId, activeReportFilters).catch(() => {
+      setError("Unable to load the employee contribution chart.");
+    });
+  }, [activeReportFilters, fetchEmployeeContribution, selectedEmployeeId]);
 
   return (
     <div className="space-y-6">
@@ -306,7 +393,7 @@ export default function ReportsPage() {
           <div className="flex items-end">
             <button
               type="submit"
-              className="w-full rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-white"
+              className="h-12 w-full rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-white"
             >
               Generate Report
             </button>
@@ -332,7 +419,7 @@ export default function ReportsPage() {
         />
       ) : (
         <>
-          <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
             <Card>
               <SectionHeader
                 eyebrow="Charts"
@@ -342,7 +429,7 @@ export default function ReportsPage() {
                   <select
                     value={selectedProject?.projectId || ""}
                     onChange={(event) => setSelectedProjectId(event.target.value)}
-                    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-[#111111] outline-none transition focus:border-primary"
+                    className="h-12 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-[#111111] outline-none transition focus:border-primary"
                   >
                     {sortedProjects.map((project) => (
                       <option key={project.projectId} value={project.projectId}>
@@ -379,20 +466,114 @@ export default function ReportsPage() {
             <Card>
               <SectionHeader
                 eyebrow="Charts"
-                title="Hours Distribution"
-                subtitle={`Total project hours: ${selectedProject?.totalProjectHours?.toFixed?.(2) || "0.00"}`}
+                title="Employee Project Contribution Chart"
+                subtitle="Horizontal project-wise contribution percentages for the selected employee."
+                action={
+                  <select
+                    value={selectedEmployeeId}
+                    onChange={(event) => setSelectedEmployeeId(event.target.value)}
+                    className="h-12 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-[#111111] outline-none transition focus:border-primary"
+                  >
+                    {reportEmployees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                }
               />
 
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={selectedProject?.employees || []}>
-                    <XAxis dataKey="employeeName" tickLine={false} axisLine={false} />
-                    <YAxis tickLine={false} axisLine={false} />
-                    <Tooltip formatter={(value) => Number(value).toFixed(2)} />
-                    <Bar dataKey="employeeHours" fill="#002CCE" radius={[10, 10, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {contributionLoading ? (
+                <Loader label="Loading employee contribution chart..." />
+              ) : employeeContribution.projects.length ? (
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#555555]">
+                        Selected Employee
+                      </p>
+                      <p className="mt-2 text-base font-semibold text-[#111111]">
+                        {employeeContribution.employee}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#555555]">
+                        Total Hours
+                      </p>
+                      <p className="mt-2 text-base font-semibold text-[#111111]">
+                        {Number(employeeContribution.totalEmployeeHours).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#555555]">
+                        Projects Worked
+                      </p>
+                      <p className="mt-2 text-base font-semibold text-[#111111]">
+                        {employeeContribution.projectCount}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="h-[340px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={employeeContribution.projects}
+                        layout="vertical"
+                        margin={{ top: 8, right: 28, left: 18, bottom: 8 }}
+                      >
+                        <XAxis
+                          type="number"
+                          domain={[0, 100]}
+                          tickFormatter={(value) => `${value}%`}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          dataKey="projectName"
+                          type="category"
+                          width={120}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip
+                          formatter={(value) => `${Number(value).toFixed(2)}%`}
+                          contentStyle={{
+                            borderRadius: "16px",
+                            borderColor: "#E2E8F0",
+                          }}
+                          labelFormatter={(label, payload) => {
+                            const row = payload?.[0]?.payload;
+                            if (!row) {
+                              return label;
+                            }
+
+                            return `${label}: ${Number(row.employeeHours).toFixed(
+                              2
+                            )}h of ${Number(row.totalProjectHours).toFixed(2)}h`;
+                          }}
+                        />
+                        <Bar dataKey="percentage" radius={[0, 10, 10, 0]} fill="#002CCE">
+                          {employeeContribution.projects.map((project, index) => (
+                            <Cell key={project.projectName} fill={palette[index % palette.length]} />
+                          ))}
+                          <LabelList
+                            dataKey="percentage"
+                            position="right"
+                            formatter={(value) => `${Number(value).toFixed(2)}%`}
+                            fill="#111111"
+                            fontSize={12}
+                          />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : (
+                <EmptyState
+                  title="No contribution data"
+                  description="Choose an employee with logged hours inside the current report filters."
+                />
+              )}
             </Card>
           </div>
 

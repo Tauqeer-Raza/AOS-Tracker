@@ -1,9 +1,14 @@
+import { Employee } from "../models/index.js";
 import { buildWorkbook } from "../services/excelService.js";
-import { buildReportData, fetchRawLogs } from "../services/reportService.js";
+import {
+  buildEmployeeContributionReport,
+  buildReportData,
+  fetchRawLogs,
+} from "../services/reportService.js";
 import { normalizeDateRange } from "../utils/date.js";
 import { sendError } from "../utils/http.js";
 
-const getFilters = (query) => {
+export const getFilters = (query) => {
   if (query.allData === "true") {
     return {
       fromDate: "2000-01-01",
@@ -21,6 +26,30 @@ const getFilters = (query) => {
     projectId: query.projectId || "",
     employeeId: query.employeeId || "",
   };
+};
+
+export const getEmployeeContribution = async (req, res) => {
+  try {
+    const employeeId = Number(req.params.employeeId);
+
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      return res.status(400).json({ message: "A valid employee ID is required" });
+    }
+
+    const employee = await Employee.findByPk(employeeId);
+
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    const filters = getFilters(req.query);
+    const rawLogs = await fetchRawLogs(filters);
+    const contributionReport = buildEmployeeContributionReport(rawLogs, employeeId, employee.name);
+
+    return res.json(contributionReport);
+  } catch (error) {
+    return sendError(res, error, "Failed to generate employee contribution report");
+  }
 };
 
 export const getReport = async (req, res) => {

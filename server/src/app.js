@@ -47,6 +47,7 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/logs", logRoutes);
 app.use("/api/report", reportRoutes);
+app.use("/api/reports", reportRoutes);
 app.use("/api/export", exportRoutes);
 
 if (fs.existsSync(frontendIndexPath)) {
