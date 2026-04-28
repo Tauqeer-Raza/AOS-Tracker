@@ -2,7 +2,7 @@ import app from "./app.js";
 import { sequelize } from "./config/db.js";
 import { env } from "./config/env.js";
 import "./models/index.js";
-import { seedIfEmpty } from "./services/seedService.js";
+import { applyEmployeeNameCorrections, seedIfEmpty } from "./services/seedService.js";
 
 const startServer = async () => {
   try {
@@ -10,6 +10,7 @@ const startServer = async () => {
     if (env.syncDatabase) {
       await sequelize.sync();
     }
+    await applyEmployeeNameCorrections();
     if (env.autoSeed) {
       const seeded = await seedIfEmpty();
       if (seeded) {

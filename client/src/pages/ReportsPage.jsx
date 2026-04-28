@@ -348,7 +348,10 @@ export default function ReportsPage() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <Card className="overflow-hidden">
-        <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-6" onSubmit={handleGenerate}>
+        <form
+          className="grid gap-4 md:grid-cols-2 xl:grid-cols-[repeat(5,minmax(0,1fr))_200px]"
+          onSubmit={handleGenerate}
+        >
           <label className="text-sm font-medium text-[#111111]">
             From Date
             <input
@@ -418,7 +421,7 @@ export default function ReportsPage() {
           <div className="flex items-end">
             <button
               type="submit"
-              className="h-12 w-full rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-white"
+              className="h-12 w-full whitespace-nowrap rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-white"
             >
               Generate Report
             </button>

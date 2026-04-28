@@ -5,6 +5,11 @@ import { sequelize } from "../config/db.js";
 import { env } from "../config/env.js";
 import { Employee, Project, WorkLog } from "../models/index.js";
 
+const EMPLOYEE_NAME_CORRECTIONS = new Map([["Hunan", "Hunain"]]);
+
+const normalizeEmployeeName = (value) =>
+  EMPLOYEE_NAME_CORRECTIONS.get(String(value || "").trim()) || String(value || "").trim();
+
 const normalizeName = (value) => String(value || "").trim();
 
 const toDateOnly = (value) => {
@@ -74,7 +79,7 @@ const readWorkbookData = (filePath) => {
 
   const employeeNames = new Set(
     employeeRows
-      .map((row) => normalizeName(row["Employee Name"]))
+      .map((row) => normalizeEmployeeName(row["Employee Name"]))
       .filter(Boolean)
   );
 
@@ -88,7 +93,7 @@ const readWorkbookData = (filePath) => {
     .map((row, index) => {
       const date = toDateOnly(row.Date);
       const projectName = normalizeName(row.Project);
-      const employeeName = normalizeName(row["Employee Name"]);
+      const employeeName = normalizeEmployeeName(row["Employee Name"]);
       const hours = Number(row["Working Hours"]);
 
       if (!date || !projectName || !employeeName || !Number.isFinite(hours)) {
@@ -164,6 +169,35 @@ export const importSeedWorkbook = async ({ clearExisting = true } = {}) => {
 };
 
 export const forceSeedWorkbook = async () => importSeedWorkbook({ clearExisting: true });
+
+export const applyEmployeeNameCorrections = async () => {
+  for (const [incorrectName, correctedName] of EMPLOYEE_NAME_CORRECTIONS.entries()) {
+    const incorrectEmployee = await Employee.findOne({ where: { name: incorrectName } });
+
+    if (!incorrectEmployee) {
+      continue;
+    }
+
+    const correctedEmployee = await Employee.findOne({ where: { name: correctedName } });
+
+    await sequelize.transaction(async (transaction) => {
+      if (correctedEmployee) {
+        await WorkLog.update(
+          { employeeId: correctedEmployee.id },
+          {
+            where: { employeeId: incorrectEmployee.id },
+            transaction,
+          }
+        );
+
+        await incorrectEmployee.destroy({ transaction });
+        return;
+      }
+
+      await incorrectEmployee.update({ name: correctedName }, { transaction });
+    });
+  }
+};
 
 export const seedIfEmpty = async () => {
   const [employeeCount, projectCount, logCount] = await Promise.all([

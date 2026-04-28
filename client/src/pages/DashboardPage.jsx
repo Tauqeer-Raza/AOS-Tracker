@@ -15,10 +15,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   year: "numeric",
 });
+const monthFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  year: "numeric",
+});
+const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const createInitialForm = () => ({
-  startDate: today,
-  endDate: today,
+  selectedDates: [],
   projectId: "",
   employeeId: "",
   hours: "",
@@ -28,59 +32,78 @@ const fieldClassName =
   "mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[#111111] outline-none transition focus:border-primary";
 
 const formatDateLabel = (value) => dateFormatter.format(new Date(`${value}T00:00:00`));
+const buildDateKey = (year, month, day) =>
+  `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-const enumerateDates = (startDate, endDate) => {
-  const dates = [];
-  const cursor = new Date(`${startDate}T00:00:00`);
-  const limit = new Date(`${endDate}T00:00:00`);
+const sortDateKeys = (dates) => [...new Set(dates)].sort((left, right) => left.localeCompare(right));
 
-  while (cursor <= limit) {
-    dates.push(cursor.toISOString().split("T")[0]);
-    cursor.setDate(cursor.getDate() + 1);
-  }
+const getSelectedDateSummary = (dates) => {
+  const sortedDates = sortDateKeys(dates);
 
-  return dates;
-};
-
-const getRangeDetails = (startDate, endDate) => {
-  if (!startDate || !endDate) {
+  if (!sortedDates.length) {
     return {
       dates: [],
       dayCount: 0,
-      label: "Select a start and end date.",
+      label: "Click calendar dates to build your work log selection.",
       isValid: false,
     };
   }
 
-  if (endDate < startDate) {
+  if (sortedDates.length === 1) {
     return {
-      dates: [],
-      dayCount: 0,
-      label: "End date must be the same as or after the start date.",
-      isValid: false,
-    };
-  }
-
-  const dates = enumerateDates(startDate, endDate);
-  const dayCount = dates.length;
-
-  if (dayCount === 1) {
-    return {
-      dates,
-      dayCount,
-      label: `1 entry will be created for ${formatDateLabel(startDate)}.`,
+      dates: sortedDates,
+      dayCount: 1,
+      label: `1 entry will be created for ${formatDateLabel(sortedDates[0])}.`,
       isValid: true,
     };
   }
 
   return {
-    dates,
-    dayCount,
-    label: `${dayCount} entries will be created from ${formatDateLabel(
-      startDate
-    )} to ${formatDateLabel(endDate)}.`,
+    dates: sortedDates,
+    dayCount: sortedDates.length,
+    label: `${sortedDates.length} entries will be created for the selected dates.`,
     isValid: true,
   };
+};
+
+const getCalendarDays = (visibleMonth) => {
+  const year = visibleMonth.getFullYear();
+  const month = visibleMonth.getMonth();
+  const firstDayOfMonth = new Date(year, month, 1);
+  const firstWeekday = firstDayOfMonth.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPreviousMonth = new Date(year, month, 0).getDate();
+  const days = [];
+
+  for (let index = 0; index < 42; index += 1) {
+    const dayOffset = index - firstWeekday + 1;
+
+    if (dayOffset <= 0) {
+      days.push({
+        label: daysInPreviousMonth + dayOffset,
+        dateKey: null,
+        inCurrentMonth: false,
+      });
+      continue;
+    }
+
+    if (dayOffset > daysInMonth) {
+      days.push({
+        label: dayOffset - daysInMonth,
+        dateKey: null,
+        inCurrentMonth: false,
+      });
+      continue;
+    }
+
+    days.push({
+      label: dayOffset,
+      dateKey: buildDateKey(year, month, dayOffset),
+      inCurrentMonth: true,
+    });
+  }
+
+  return days;
 };
 
 const buildFailedDatesMessage = (failedDates = [], invalidDates = []) => {
@@ -113,54 +136,148 @@ const extractRequestError = (requestError, fallbackMessage) => {
   return [payload?.message, failedDatesMessage, fallbackMessage].filter(Boolean).join(" ");
 };
 
-function DateRangeField({ formValues, onChange }) {
-  const rangeDetails = getRangeDetails(formValues.startDate, formValues.endDate);
+function MultiDateCalendar({
+  selectedDates,
+  visibleMonth,
+  onToggleDate,
+  onClearDates,
+  onMonthChange,
+}) {
+  const calendarDays = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
+  const selectedDateSet = useMemo(() => new Set(selectedDates), [selectedDates]);
+  const selectedSummary = getSelectedDateSummary(selectedDates);
+  const previewDates = selectedSummary.dates.slice(0, 6);
+  const remainingCount = Math.max(0, selectedSummary.dayCount - previewDates.length);
 
   return (
     <label className="text-sm font-medium text-[#111111]">
       Date / Dates
       <div className="mt-2 rounded-[22px] border border-slate-200 bg-[#F8FAFF] p-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#555555]">
-            Start Date
-            <input
-              type="date"
-              className={fieldClassName}
-              value={formValues.startDate}
-              onChange={(event) => onChange("startDate", event.target.value)}
-            />
-          </label>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#555555]">
+              Select Dates
+            </p>
+            <p className="mt-1 text-sm font-semibold text-[#111111]">
+              {monthFormatter.format(visibleMonth)}
+            </p>
+          </div>
 
-          <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#555555]">
-            End Date
-            <input
-              type="date"
-              className={fieldClassName}
-              value={formValues.endDate}
-              onChange={(event) => onChange("endDate", event.target.value)}
-            />
-          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onMonthChange(-1)}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg text-[#111111]"
+              aria-label="Previous month"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={() => onMonthChange(1)}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg text-[#111111]"
+              aria-label="Next month"
+            >
+              ›
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-7 gap-2">
+          {weekdayLabels.map((label) => (
+            <div
+              key={label}
+              className="text-center text-xs font-semibold uppercase tracking-[0.14em] text-[#555555]"
+            >
+              {label}
+            </div>
+          ))}
+
+          {calendarDays.map((day, index) => {
+            const isSelected = day.dateKey ? selectedDateSet.has(day.dateKey) : false;
+
+            return (
+              <button
+                key={`${day.label}-${index}`}
+                type="button"
+                disabled={!day.inCurrentMonth}
+                onClick={() => day.dateKey && onToggleDate(day.dateKey)}
+                className={[
+                  "flex aspect-square min-h-[42px] items-center justify-center rounded-2xl border text-sm font-semibold transition",
+                  day.inCurrentMonth
+                    ? "border-slate-200 bg-white text-[#111111] hover:border-primary hover:text-primary"
+                    : "cursor-default border-transparent bg-transparent text-slate-300",
+                  isSelected ? "border-primary bg-primary text-white hover:text-white" : "",
+                ].join(" ")}
+              >
+                {day.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-          <p className="text-sm font-semibold text-[#111111]">
-            {rangeDetails.isValid ? rangeDetails.label : "Range preview"}
-          </p>
-          <p className="mt-1 text-sm text-[#555555]">
-            {rangeDetails.isValid
-              ? "Use the same start and end date for a single-day entry."
-              : rangeDetails.label}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[#111111]">
+                {selectedSummary.isValid ? selectedSummary.label : "No dates selected yet."}
+              </p>
+              <p className="mt-1 text-sm text-[#555555]">
+                Click any date to toggle it on or off, just like seat selection.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClearDates}
+              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-[#555555]"
+            >
+              Clear
+            </button>
+          </div>
+
+          {previewDates.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {previewDates.map((date) => (
+                <span
+                  key={date}
+                  className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary"
+                >
+                  {formatDateLabel(date)}
+                </span>
+              ))}
+              {remainingCount ? (
+                <span className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-[#555555]">
+                  +{remainingCount} more
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </label>
   );
 }
 
-function CreateLogFormFields({ formValues, onChange, employees, projects }) {
+function CreateLogFormFields({
+  formValues,
+  employees,
+  projects,
+  visibleMonth,
+  onMonthChange,
+  onToggleDate,
+  onClearDates,
+  onChange,
+}) {
   return (
     <div className="grid gap-5 md:grid-cols-2">
-      <DateRangeField formValues={formValues} onChange={onChange} />
+      <MultiDateCalendar
+        selectedDates={formValues.selectedDates}
+        visibleMonth={visibleMonth}
+        onToggleDate={onToggleDate}
+        onClearDates={onClearDates}
+        onMonthChange={onMonthChange}
+      />
 
       <label className="text-sm font-medium text-[#111111]">
         Project Name
@@ -281,6 +398,10 @@ function EditLogFormFields({ formValues, onChange, employees, projects }) {
 
 export default function DashboardPage() {
   const [entryForm, setEntryForm] = useState(createInitialForm);
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const currentDate = new Date();
+    return new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  });
   const [selectedDate, setSelectedDate] = useState(today);
   const [employees, setEmployees] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -339,9 +460,9 @@ export default function DashboardPage() {
     [summary]
   );
 
-  const selectedRange = useMemo(
-    () => getRangeDetails(entryForm.startDate, entryForm.endDate),
-    [entryForm.startDate, entryForm.endDate]
+  const selectedDateSummary = useMemo(
+    () => getSelectedDateSummary(entryForm.selectedDates),
+    [entryForm.selectedDates]
   );
 
   const handleFormChange = (key, value) => {
@@ -349,6 +470,37 @@ export default function DashboardPage() {
       ...current,
       [key]: value,
     }));
+  };
+
+  const handleToggleDate = (dateKey) => {
+    setEntryForm((current) => {
+      const currentSelection = new Set(current.selectedDates);
+
+      if (currentSelection.has(dateKey)) {
+        currentSelection.delete(dateKey);
+      } else {
+        currentSelection.add(dateKey);
+      }
+
+      return {
+        ...current,
+        selectedDates: sortDateKeys(Array.from(currentSelection)),
+      };
+    });
+    setError("");
+  };
+
+  const handleClearDates = () => {
+    setEntryForm((current) => ({
+      ...current,
+      selectedDates: [],
+    }));
+  };
+
+  const handleMonthChange = (offset) => {
+    setVisibleMonth(
+      (current) => new Date(current.getFullYear(), current.getMonth() + offset, 1)
+    );
   };
 
   const handleEditFieldChange = (key, value) => {
@@ -368,9 +520,9 @@ export default function DashboardPage() {
     setError("");
     setMessage("");
 
-    if (!selectedRange.isValid) {
+    if (!selectedDateSummary.isValid) {
       setSubmitting(false);
-      setError("Choose a valid date range before submitting the work log.");
+      setError("Select one or more dates from the calendar before submitting the work log.");
       return;
     }
 
@@ -380,10 +532,10 @@ export default function DashboardPage() {
       hours: Number(entryForm.hours),
     };
 
-    if (selectedRange.dayCount === 1) {
-      payload.date = selectedRange.dates[0];
+    if (selectedDateSummary.dayCount === 1) {
+      payload.date = selectedDateSummary.dates[0];
     } else {
-      payload.dates = selectedRange.dates;
+      payload.dates = selectedDateSummary.dates;
     }
 
     try {
@@ -396,19 +548,15 @@ export default function DashboardPage() {
 
       setMessage(
         response.data?.message ||
-          `Entry saved successfully for ${selectedRange.dates
+          `Entry saved successfully for ${selectedDateSummary.dates
             .map((date) => formatDateLabel(date))
             .join(", ")}.`
       );
       setError(failedDatesMessage);
       setEntryForm(createInitialForm());
 
-      if (selectedRange.dates.includes(selectedDate)) {
+      if (selectedDateSummary.dates.includes(selectedDate)) {
         await refreshSelectedDate();
-      }
-
-      if (selectedRange.dayCount > 1 && !response.data?.message) {
-        setMessage(`Created ${createdCount} individual work log entries.`);
       }
     } catch (requestError) {
       setError(extractRequestError(requestError, "Failed to submit entry."));
@@ -481,7 +629,7 @@ export default function DashboardPage() {
       <SectionHeader
         eyebrow="Dashboard"
         title="AOS - Employee Proportion Tracker"
-        subtitle="Add work logs across one day or a full date range, review selected-date totals, and keep contribution reporting accurate."
+        subtitle="Click the dates you want, submit once, and the app will create one separate row per selected day."
       />
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -497,12 +645,12 @@ export default function DashboardPage() {
         <StatCard label="Entries Logged" value={entries.length} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
-        <Card className="min-h-[430px] overflow-hidden">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
+        <Card className="min-h-[560px] overflow-hidden">
           <SectionHeader
             eyebrow="Daily Logger"
             title="Add Work Entry"
-            subtitle="Set a start and end date once. The app will create one row per day in that range."
+            subtitle="Pick any combination of dates from the calendar, like seat selection, and submit everything in one click."
           />
 
           {lookupsLoading ? (
@@ -514,6 +662,10 @@ export default function DashboardPage() {
                 onChange={handleFormChange}
                 employees={employees}
                 projects={projects}
+                visibleMonth={visibleMonth}
+                onMonthChange={handleMonthChange}
+                onToggleDate={handleToggleDate}
+                onClearDates={handleClearDates}
               />
 
               <div className="flex flex-wrap gap-3">
@@ -528,6 +680,7 @@ export default function DashboardPage() {
                   type="button"
                   onClick={() => {
                     setEntryForm(createInitialForm());
+                    setVisibleMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
                     setError("");
                   }}
                   className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-[#555555]"
@@ -539,7 +692,7 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card className="min-h-[430px] overflow-hidden">
+        <Card className="min-h-[560px] overflow-hidden">
           <SectionHeader
             eyebrow="Daily Summary"
             title="Hours by Employee"
