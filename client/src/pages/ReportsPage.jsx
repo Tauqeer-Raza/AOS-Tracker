@@ -1,16 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  Cell,
-  LabelList,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import api from "../services/api.js";
 import Card from "../components/Card.jsx";
 import DataTable from "../components/DataTable.jsx";
@@ -51,6 +40,42 @@ const sortRows = (rows, sortBy) => {
 
   return sorted;
 };
+
+function ContributionBarList({ projects }) {
+  return (
+    <div className="space-y-4">
+      {projects.map((project, index) => {
+        const width = Math.min(Math.max(Number(project.percentage), 2), 100);
+
+        return (
+          <div key={project.projectName} className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)_68px] sm:items-center">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-[#111111]">{project.projectName}</p>
+              <p className="text-xs text-[#555555]">
+                {Number(project.employeeHours).toFixed(2)}h of{" "}
+                {Number(project.totalProjectHours).toFixed(2)}h
+              </p>
+            </div>
+
+            <div className="h-4 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full transition-[width]"
+                style={{
+                  width: `${width}%`,
+                  backgroundColor: palette[index % palette.length],
+                }}
+              />
+            </div>
+
+            <p className="text-right text-sm font-semibold text-[#111111]">
+              {Number(project.percentage).toFixed(2)}%
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function ReportsPage() {
   const [employees, setEmployees] = useState([]);
@@ -322,7 +347,7 @@ export default function ReportsPage() {
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-      <Card>
+      <Card className="overflow-hidden">
         <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-6" onSubmit={handleGenerate}>
           <label className="text-sm font-medium text-[#111111]">
             From Date
@@ -419,8 +444,8 @@ export default function ReportsPage() {
         />
       ) : (
         <>
-          <div className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
-            <Card>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <Card className="overflow-hidden">
               <SectionHeader
                 eyebrow="Charts"
                 title="Contribution Pie Chart"
@@ -429,7 +454,7 @@ export default function ReportsPage() {
                   <select
                     value={selectedProject?.projectId || ""}
                     onChange={(event) => setSelectedProjectId(event.target.value)}
-                    className="h-12 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-[#111111] outline-none transition focus:border-primary"
+                    className="h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-[#111111] outline-none transition focus:border-primary sm:w-auto"
                   >
                     {sortedProjects.map((project) => (
                       <option key={project.projectId} value={project.projectId}>
@@ -463,7 +488,7 @@ export default function ReportsPage() {
               </div>
             </Card>
 
-            <Card>
+            <Card className="overflow-hidden">
               <SectionHeader
                 eyebrow="Charts"
                 title="Employee Project Contribution Chart"
@@ -472,7 +497,7 @@ export default function ReportsPage() {
                   <select
                     value={selectedEmployeeId}
                     onChange={(event) => setSelectedEmployeeId(event.target.value)}
-                    className="h-12 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-[#111111] outline-none transition focus:border-primary"
+                    className="h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-[#111111] outline-none transition focus:border-primary sm:w-auto"
                   >
                     {reportEmployees.map((employee) => (
                       <option key={employee.id} value={employee.id}>
@@ -486,7 +511,7 @@ export default function ReportsPage() {
               {contributionLoading ? (
                 <Loader label="Loading employee contribution chart..." />
               ) : employeeContribution.projects.length ? (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="rounded-2xl border border-slate-200 px-4 py-3">
                       <p className="text-xs uppercase tracking-[0.18em] text-[#555555]">
@@ -514,58 +539,8 @@ export default function ReportsPage() {
                     </div>
                   </div>
 
-                  <div className="h-[340px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={employeeContribution.projects}
-                        layout="vertical"
-                        margin={{ top: 8, right: 28, left: 18, bottom: 8 }}
-                      >
-                        <XAxis
-                          type="number"
-                          domain={[0, 100]}
-                          tickFormatter={(value) => `${value}%`}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          dataKey="projectName"
-                          type="category"
-                          width={120}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <Tooltip
-                          formatter={(value) => `${Number(value).toFixed(2)}%`}
-                          contentStyle={{
-                            borderRadius: "16px",
-                            borderColor: "#E2E8F0",
-                          }}
-                          labelFormatter={(label, payload) => {
-                            const row = payload?.[0]?.payload;
-                            if (!row) {
-                              return label;
-                            }
-
-                            return `${label}: ${Number(row.employeeHours).toFixed(
-                              2
-                            )}h of ${Number(row.totalProjectHours).toFixed(2)}h`;
-                          }}
-                        />
-                        <Bar dataKey="percentage" radius={[0, 10, 10, 0]} fill="#002CCE">
-                          {employeeContribution.projects.map((project, index) => (
-                            <Cell key={project.projectName} fill={palette[index % palette.length]} />
-                          ))}
-                          <LabelList
-                            dataKey="percentage"
-                            position="right"
-                            formatter={(value) => `${Number(value).toFixed(2)}%`}
-                            fill="#111111"
-                            fontSize={12}
-                          />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="rounded-[22px] border border-slate-200 bg-[#FBFCFF] p-4">
+                    <ContributionBarList projects={employeeContribution.projects} />
                   </div>
                 </div>
               ) : (
@@ -577,7 +552,7 @@ export default function ReportsPage() {
             </Card>
           </div>
 
-          <Card>
+          <Card className="overflow-hidden">
             <SectionHeader
               eyebrow="Contribution Rows"
               title="Employee Contribution by Project"
@@ -605,7 +580,7 @@ export default function ReportsPage() {
 
           <div className="space-y-6">
             {sortedProjects.map((project) => (
-              <Card key={project.projectId}>
+              <Card key={project.projectId} className="overflow-hidden">
                 <SectionHeader
                   eyebrow="Project"
                   title={project.projectName}
