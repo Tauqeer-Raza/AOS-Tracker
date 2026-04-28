@@ -152,8 +152,8 @@ function MultiDateCalendar({
   return (
     <label className="text-sm font-medium text-[#111111]">
       Date / Dates
-      <div className="mt-2 rounded-[22px] border border-slate-200 bg-[#F8FAFF] p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-2 rounded-[22px] border border-slate-200 bg-[#F8FAFF] p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#555555]">
               Select Dates
@@ -183,11 +183,11 @@ function MultiDateCalendar({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-7 gap-2">
+        <div className="mt-5 grid grid-cols-7 gap-2.5">
           {weekdayLabels.map((label) => (
             <div
               key={label}
-              className="text-center text-xs font-semibold uppercase tracking-[0.14em] text-[#555555]"
+              className="text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#555555] sm:text-xs"
             >
               {label}
             </div>
@@ -203,7 +203,7 @@ function MultiDateCalendar({
                 disabled={!day.inCurrentMonth}
                 onClick={() => day.dateKey && onToggleDate(day.dateKey)}
                 className={[
-                  "flex aspect-square min-h-[42px] items-center justify-center rounded-2xl border text-sm font-semibold transition",
+                  "flex aspect-square min-h-[46px] items-center justify-center rounded-2xl border text-sm font-semibold transition sm:min-h-[52px]",
                   day.inCurrentMonth
                     ? "border-slate-200 bg-white text-[#111111] hover:border-primary hover:text-primary"
                     : "cursor-default border-transparent bg-transparent text-slate-300",
@@ -216,9 +216,9 @@ function MultiDateCalendar({
           })}
         </div>
 
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-[#111111]">
                 {selectedSummary.isValid ? selectedSummary.label : "No dates selected yet."}
               </p>
@@ -271,15 +271,17 @@ function CreateLogFormFields({
 }) {
   return (
     <div className="grid gap-5 md:grid-cols-2">
-      <MultiDateCalendar
-        selectedDates={formValues.selectedDates}
-        visibleMonth={visibleMonth}
-        onToggleDate={onToggleDate}
-        onClearDates={onClearDates}
-        onMonthChange={onMonthChange}
-      />
+      <div className="md:col-span-2">
+        <MultiDateCalendar
+          selectedDates={formValues.selectedDates}
+          visibleMonth={visibleMonth}
+          onToggleDate={onToggleDate}
+          onClearDates={onClearDates}
+          onMonthChange={onMonthChange}
+        />
+      </div>
 
-      <label className="text-sm font-medium text-[#111111]">
+      <label className="text-sm font-medium text-[#111111] md:col-span-2">
         Project Name
         <select
           required
@@ -645,12 +647,12 @@ export default function DashboardPage() {
         <StatCard label="Entries Logged" value={entries.length} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.22fr)_minmax(320px,0.78fr)]">
         <Card className="min-h-[560px] overflow-hidden">
           <SectionHeader
             eyebrow="Daily Logger"
             title="Add Work Entry"
-            subtitle="Pick any combination of dates from the calendar, like seat selection, and submit everything in one click."
+            subtitle="Pick any combination of dates from the calendar, then set the project and hours below."
           />
 
           {lookupsLoading ? (
