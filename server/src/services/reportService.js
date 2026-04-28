@@ -114,3 +114,34 @@ export const buildReportData = (logs) => {
     },
   };
 };
+
+export const buildEmployeeContributionReport = (logs, employeeId, fallbackEmployeeName = "") => {
+  const reportData = buildReportData(logs);
+  const normalizedEmployeeId = Number(employeeId);
+
+  const projects = reportData.employeeContributions
+    .filter((row) => row.employeeId === normalizedEmployeeId && row.employeeHours > 0)
+    .sort(
+      (left, right) =>
+        right.percentage - left.percentage ||
+        right.employeeHours - left.employeeHours ||
+        left.projectName.localeCompare(right.projectName)
+    )
+    .map((row) => ({
+      projectName: row.projectName,
+      employeeHours: row.employeeHours,
+      totalProjectHours: row.totalProjectHours,
+      percentage: row.percentage,
+    }));
+
+  const totalEmployeeHours = Number(
+    projects.reduce((sum, project) => sum + project.employeeHours, 0).toFixed(2)
+  );
+
+  return {
+    employee: fallbackEmployeeName,
+    totalEmployeeHours,
+    projectCount: projects.length,
+    projects,
+  };
+};
