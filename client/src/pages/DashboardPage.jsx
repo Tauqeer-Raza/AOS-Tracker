@@ -204,12 +204,19 @@ function MultiDateCalendar({
                 day.inCurrentMonth
                   ? "border-slate-200 bg-white text-[#111111] hover:border-[#002CCE] hover:text-[#002CCE]"
                   : "cursor-default border-transparent bg-transparent text-slate-300",
-                isSelected
-                  ? "border-[#002CCE] bg-[#002CCE] text-white shadow-[0_0_0_2px_rgba(0,44,206,0.12)] hover:border-[#002CCE] hover:bg-[#002CCE] hover:text-white"
-                  : "",
               ].join(" ")}
+              style={
+                isSelected
+                  ? {
+                      backgroundColor: "#002CCE",
+                      borderColor: "#002CCE",
+                      color: "#FFFFFF",
+                      boxShadow: "0 0 0 2px rgba(0, 44, 206, 0.12)",
+                    }
+                  : undefined
+              }
             >
-              <span className={isSelected ? "text-white" : ""}>{day.label}</span>
+              <span style={isSelected ? { color: "#FFFFFF" } : undefined}>{day.label}</span>
             </button>
           );
         })}
