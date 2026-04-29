@@ -34,7 +34,6 @@ const fieldClassName =
 const formatDateLabel = (value) => dateFormatter.format(new Date(`${value}T00:00:00`));
 const buildDateKey = (year, month, day) =>
   `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
 const sortDateKeys = (dates) => [...new Set(dates)].sort((left, right) => left.localeCompare(right));
 
 const getSelectedDateSummary = (dates) => {
@@ -44,7 +43,7 @@ const getSelectedDateSummary = (dates) => {
     return {
       dates: [],
       dayCount: 0,
-      label: "Click calendar dates to build your work log selection.",
+      label: "No dates selected",
       isValid: false,
     };
   }
@@ -150,112 +149,108 @@ function MultiDateCalendar({
   const remainingCount = Math.max(0, selectedSummary.dayCount - previewDates.length);
 
   return (
-    <label className="text-sm font-medium text-[#111111]">
-      Date / Dates
-      <div className="mt-2 rounded-[22px] border border-slate-200 bg-[#F8FAFF] p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#555555]">
-              Select Dates
-            </p>
-            <p className="mt-1 text-sm font-semibold text-[#111111]">
-              {monthFormatter.format(visibleMonth)}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => onMonthChange(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg text-[#111111]"
-              aria-label="Previous month"
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              onClick={() => onMonthChange(1)}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg text-[#111111]"
-              aria-label="Next month"
-            >
-              ›
-            </button>
-          </div>
+    <div className="rounded-[22px] border border-slate-200 bg-[#F8FAFF] p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#555555]">
+            Select Dates
+          </p>
+          <p className="mt-1 text-sm font-semibold text-[#111111]">
+            {monthFormatter.format(visibleMonth)}
+          </p>
         </div>
 
-        <div className="mt-5 grid grid-cols-7 gap-2.5">
-          {weekdayLabels.map((label) => (
-            <div
-              key={label}
-              className="text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#555555] sm:text-xs"
-            >
-              {label}
-            </div>
-          ))}
-
-          {calendarDays.map((day, index) => {
-            const isSelected = day.dateKey ? selectedDateSet.has(day.dateKey) : false;
-
-            return (
-              <button
-                key={`${day.label}-${index}`}
-                type="button"
-                disabled={!day.inCurrentMonth}
-                onClick={() => day.dateKey && onToggleDate(day.dateKey)}
-                className={[
-                  "flex aspect-square min-h-[46px] items-center justify-center rounded-2xl border text-sm font-semibold transition sm:min-h-[52px]",
-                  day.inCurrentMonth
-                    ? "border-slate-200 bg-white text-[#111111] hover:border-primary hover:text-primary"
-                    : "cursor-default border-transparent bg-transparent text-slate-300",
-                  isSelected ? "border-primary bg-primary text-white hover:text-white" : "",
-                ].join(" ")}
-              >
-                {day.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[#111111]">
-                {selectedSummary.isValid ? selectedSummary.label : "No dates selected yet."}
-              </p>
-              <p className="mt-1 text-sm text-[#555555]">
-                Click any date to toggle it on or off, just like seat selection.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={onClearDates}
-              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-[#555555]"
-            >
-              Clear
-            </button>
-          </div>
-
-          {previewDates.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {previewDates.map((date) => (
-                <span
-                  key={date}
-                  className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary"
-                >
-                  {formatDateLabel(date)}
-                </span>
-              ))}
-              {remainingCount ? (
-                <span className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-[#555555]">
-                  +{remainingCount} more
-                </span>
-              ) : null}
-            </div>
-          ) : null}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => onMonthChange(-1)}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-semibold text-[#111111]"
+            aria-label="Previous month"
+          >
+            {"<"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onMonthChange(1)}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-semibold text-[#111111]"
+            aria-label="Next month"
+          >
+            {">"}
+          </button>
         </div>
       </div>
-    </label>
+
+      <div className="mt-5 grid grid-cols-7 gap-2.5">
+        {weekdayLabels.map((label) => (
+          <div
+            key={label}
+            className="text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#555555] sm:text-xs"
+          >
+            {label}
+          </div>
+        ))}
+
+        {calendarDays.map((day, index) => {
+          const isSelected = day.dateKey ? selectedDateSet.has(day.dateKey) : false;
+
+          return (
+            <button
+              key={`${day.label}-${index}`}
+              type="button"
+              disabled={!day.inCurrentMonth}
+              onClick={() => day.dateKey && onToggleDate(day.dateKey)}
+              className={[
+                "flex aspect-square min-h-[46px] items-center justify-center rounded-2xl border text-sm font-semibold transition sm:min-h-[52px]",
+                day.inCurrentMonth
+                  ? "border-slate-200 bg-white text-[#111111] hover:border-[#002CCE] hover:text-[#002CCE]"
+                  : "cursor-default border-transparent bg-transparent text-slate-300",
+                isSelected
+                  ? "border-[#002CCE] bg-[#002CCE] text-white shadow-[0_0_0_2px_rgba(0,44,206,0.12)] hover:border-[#002CCE] hover:bg-[#002CCE] hover:text-white"
+                  : "",
+              ].join(" ")}
+            >
+              <span className={isSelected ? "text-white" : ""}>{day.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[#111111]">
+              {selectedSummary.isValid ? selectedSummary.label : "No dates selected yet."}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClearDates}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-[#555555]"
+          >
+            Clear
+          </button>
+        </div>
+
+        {previewDates.length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {previewDates.map((date) => (
+              <span
+                key={date}
+                className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary"
+              >
+                {formatDateLabel(date)}
+              </span>
+            ))}
+            {remainingCount ? (
+              <span className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-[#555555]">
+                +{remainingCount} more
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -263,23 +258,61 @@ function CreateLogFormFields({
   formValues,
   employees,
   projects,
-  visibleMonth,
-  onMonthChange,
-  onToggleDate,
-  onClearDates,
+  onOpenDatePicker,
   onChange,
 }) {
+  const selectedDateSummary = getSelectedDateSummary(formValues.selectedDates);
+  const selectedPreview = selectedDateSummary.dates.slice(0, 3);
+
   return (
     <div className="grid gap-5 md:grid-cols-2">
-      <div className="md:col-span-2">
-        <MultiDateCalendar
-          selectedDates={formValues.selectedDates}
-          visibleMonth={visibleMonth}
-          onToggleDate={onToggleDate}
-          onClearDates={onClearDates}
-          onMonthChange={onMonthChange}
-        />
-      </div>
+      <label className="text-sm font-medium text-[#111111] md:col-span-2">
+        Date / Dates
+        <div className="mt-2 rounded-[22px] border border-slate-200 bg-[#F8FAFF] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-[#111111]">
+                {selectedDateSummary.isValid
+                  ? `${selectedDateSummary.dayCount} date${
+                      selectedDateSummary.dayCount === 1 ? "" : "s"
+                    } selected`
+                  : "No dates selected"}
+              </p>
+              <p className="mt-1 text-sm text-[#555555]">
+                {selectedDateSummary.isValid
+                  ? selectedDateSummary.label
+                  : "Choose one or more dates for this work log."}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenDatePicker}
+              className="rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white"
+            >
+              Select Dates
+            </button>
+          </div>
+
+          {selectedPreview.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {selectedPreview.map((date) => (
+                <span
+                  key={date}
+                  className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary"
+                >
+                  {formatDateLabel(date)}
+                </span>
+              ))}
+              {selectedDateSummary.dayCount > selectedPreview.length ? (
+                <span className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-[#555555]">
+                  +{selectedDateSummary.dayCount - selectedPreview.length} more
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </label>
 
       <label className="text-sm font-medium text-[#111111] md:col-span-2">
         Project Name
@@ -400,6 +433,7 @@ function EditLogFormFields({ formValues, onChange, employees, projects }) {
 
 export default function DashboardPage() {
   const [entryForm, setEntryForm] = useState(createInitialForm);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const currentDate = new Date();
     return new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -524,7 +558,7 @@ export default function DashboardPage() {
 
     if (!selectedDateSummary.isValid) {
       setSubmitting(false);
-      setError("Select one or more dates from the calendar before submitting the work log.");
+      setError("Select one or more dates before submitting the work log.");
       return;
     }
 
@@ -542,7 +576,6 @@ export default function DashboardPage() {
 
     try {
       const response = await api.post("/logs", payload);
-      const createdCount = response.data?.createdCount || 1;
       const failedDatesMessage = buildFailedDatesMessage(
         response.data?.failedDates,
         response.data?.invalidDates
@@ -556,6 +589,7 @@ export default function DashboardPage() {
       );
       setError(failedDatesMessage);
       setEntryForm(createInitialForm());
+      setIsDatePickerOpen(false);
 
       if (selectedDateSummary.dates.includes(selectedDate)) {
         await refreshSelectedDate();
@@ -631,7 +665,7 @@ export default function DashboardPage() {
       <SectionHeader
         eyebrow="Dashboard"
         title="AOS - Employee Proportion Tracker"
-        subtitle="Click the dates you want, submit once, and the app will create one separate row per selected day."
+        subtitle="Select your dates from a popup, then submit once to create one row per chosen day."
       />
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -648,11 +682,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.22fr)_minmax(320px,0.78fr)]">
-        <Card className="min-h-[560px] overflow-hidden">
+        <Card className="min-h-[420px] overflow-hidden">
           <SectionHeader
             eyebrow="Daily Logger"
             title="Add Work Entry"
-            subtitle="Pick any combination of dates from the calendar, then set the project and hours below."
+            subtitle="Open the date picker only when you need it, then set the project and hours below."
           />
 
           {lookupsLoading ? (
@@ -664,10 +698,7 @@ export default function DashboardPage() {
                 onChange={handleFormChange}
                 employees={employees}
                 projects={projects}
-                visibleMonth={visibleMonth}
-                onMonthChange={handleMonthChange}
-                onToggleDate={handleToggleDate}
-                onClearDates={handleClearDates}
+                onOpenDatePicker={() => setIsDatePickerOpen(true)}
               />
 
               <div className="flex flex-wrap gap-3">
@@ -683,6 +714,7 @@ export default function DashboardPage() {
                   onClick={() => {
                     setEntryForm(createInitialForm());
                     setVisibleMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+                    setIsDatePickerOpen(false);
                     setError("");
                   }}
                   className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-[#555555]"
@@ -694,7 +726,7 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card className="min-h-[560px] overflow-hidden">
+        <Card className="min-h-[420px] overflow-hidden">
           <SectionHeader
             eyebrow="Daily Summary"
             title="Hours by Employee"
@@ -787,6 +819,41 @@ export default function DashboardPage() {
           />
         )}
       </Card>
+
+      {isDatePickerOpen ? (
+        <Modal
+          title="Select Dates"
+          subtitle="Choose one or more work log dates."
+          onClose={() => setIsDatePickerOpen(false)}
+        >
+          <div className="space-y-5">
+            <MultiDateCalendar
+              selectedDates={entryForm.selectedDates}
+              visibleMonth={visibleMonth}
+              onToggleDate={handleToggleDate}
+              onClearDates={handleClearDates}
+              onMonthChange={handleMonthChange}
+            />
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setIsDatePickerOpen(false)}
+                className="rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-white"
+              >
+                Done
+              </button>
+              <button
+                type="button"
+                onClick={handleClearDates}
+                className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-[#555555]"
+              >
+                Clear Dates
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
 
       {editingLog ? (
         <Modal
