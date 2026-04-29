@@ -285,11 +285,6 @@ function CreateLogFormFields({
                     } selected`
                   : "No dates selected"}
               </p>
-              <p className="mt-1 text-sm text-[#555555]">
-                {selectedDateSummary.isValid
-                  ? selectedDateSummary.label
-                  : "Choose one or more dates for this work log."}
-              </p>
             </div>
 
             <button
@@ -672,7 +667,6 @@ export default function DashboardPage() {
       <SectionHeader
         eyebrow="Dashboard"
         title="AOS - Employee Proportion Tracker"
-        subtitle="Select your dates from a popup, then submit once to create one row per chosen day."
       />
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -693,7 +687,6 @@ export default function DashboardPage() {
           <SectionHeader
             eyebrow="Daily Logger"
             title="Add Work Entry"
-            subtitle="Open the date picker only when you need it, then set the project and hours below."
           />
 
           {lookupsLoading ? (
@@ -785,7 +778,6 @@ export default function DashboardPage() {
         <SectionHeader
           eyebrow="Entries"
           title="Selected Date Logs"
-          subtitle={`Detailed work logs for ${selectedDate}. Every row remains editable and deletable on its own.`}
         />
 
         {logsLoading ? (
